@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.aurora-bg {
+  position: absolute;
+  inset: -10% 0 0 0;
+  overflow: hidden;
+}
+
+.aurora-layer {
+  position: absolute;
+  inset: -20%;
+  background-size: 180% 180%;
+  filter: blur(75px);
+  opacity: 0.7;
+  mix-blend-mode: screen;
+}
