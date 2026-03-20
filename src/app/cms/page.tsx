@@ -1,8 +1,18 @@
+import { redirect } from "next/navigation";
+import { getCmsSession } from "@/lib/cms/session";
+import CmsLoginForm from "./CmsLoginForm";
+
 export const metadata = {
   title: "CMS Hotel Media",
 };
 
-export default function CmsLoginPage() {
+export default async function CmsLoginPage() {
+  const session = await getCmsSession();
+
+  if (session) {
+    redirect("/cms/dashboard");
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#eef3f8] text-[#1d1b16]">
       <div className="pointer-events-none absolute inset-0 aurora-bg">
@@ -55,39 +65,7 @@ export default function CmsLoginPage() {
               Enter your credentials to reach the editorial console.
             </p>
 
-            <form className="mt-6 space-y-4">
-              <label className="block text-sm font-medium text-[#4a4037]">
-                Work email
-                <input
-                  type="email"
-                  placeholder="name@publisher.com"
-                  className="mt-2 w-full rounded-2xl border border-[#e6d3bf] bg-white px-4 py-3 text-sm shadow-sm focus:border-[#b46b2f] focus:outline-none focus:ring-2 focus:ring-[#b46b2f]/30"
-                />
-              </label>
-              <label className="block text-sm font-medium text-[#4a4037]">
-                Password
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  className="mt-2 w-full rounded-2xl border border-[#e6d3bf] bg-white px-4 py-3 text-sm shadow-sm focus:border-[#2f4858] focus:outline-none focus:ring-2 focus:ring-[#2f4858]/30"
-                />
-              </label>
-              <div className="flex items-center justify-between text-xs text-[#6a5f54]">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="h-4 w-4 rounded border-[#d1c2b1]" />
-                  Keep me signed in
-                </label>
-                <a className="font-semibold text-[#8d5a2b]" href="#">
-                  Reset password
-                </a>
-              </div>
-              <button
-                type="button"
-                className="mt-2 w-full rounded-2xl bg-[#1d1b16] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#1d1b16]/30 transition hover:-translate-y-0.5 hover:bg-[#2b2720]"
-              >
-                Enter CMS
-              </button>
-            </form>
+            <CmsLoginForm />
 
             <div className="mt-6 rounded-2xl border border-dashed border-[#d9c9b8] bg-[#fbf7f1] px-4 py-3 text-xs text-[#6b5b4a]">
               Need access? Contact your managing editor to request a secure invite.

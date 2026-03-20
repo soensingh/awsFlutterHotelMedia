@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import jwt, { type SignOptions, type Secret } from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { getCmsUserModel } from "../model";
@@ -31,8 +32,10 @@ export async function POST(req: Request) {
     audience: env.JWT_AUDIENCE,
   };
 
+  const sessionTokenId = crypto.randomUUID();
+
   const token = jwt.sign(
-    { sub: user._id.toString(), role: user.role, email: user.email },
+    { sub: user._id.toString(), role: user.role, email: user.email, sid: sessionTokenId },
     env.JWT_SECRET as Secret,
     signOptions
   );
@@ -48,6 +51,7 @@ export async function POST(req: Request) {
     maxAge: env.JWT_COOKIE_MAX_AGE,
   });
 
+  user.sessionTokenId = sessionTokenId;
   user.lastOnline = new Date();
   user.isOnline = true;
   await user.save();

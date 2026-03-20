@@ -1,3 +1,7 @@
+import { redirect } from "next/navigation";
+import { getCmsSession } from "@/lib/cms/session";
+import CmsUserPanel from "./CmsUserPanel";
+
 const navItems = [
   "Overview",
   "Stories",
@@ -30,7 +34,13 @@ export const metadata = {
   title: "CMS Dashboard",
 };
 
-export default function CmsDashboardPage() {
+export default async function CmsDashboardPage() {
+  const session = await getCmsSession();
+
+  if (!session) {
+    redirect("/cms");
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#eef3f8] text-[#1d1b16]">
       <div className="pointer-events-none absolute inset-0 aurora-bg">
@@ -71,24 +81,7 @@ export default function CmsDashboardPage() {
             </nav>
           </div>
 
-          <div className="mt-10 rounded-2xl border border-dashed border-[#d9c9b8] bg-white/70 p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8d5a2b]">
-              User
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1d1b16] text-sm font-semibold text-white">
-                AD
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#1d1b16]">Ariana Doyle</p>
-                <p className="text-xs text-[#6a5f54]">Senior Editor</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-xs text-[#6a5f54]">
-              <span>Last sync</span>
-              <span className="font-semibold text-[#1d1b16]">2 min ago</span>
-            </div>
-          </div>
+          <CmsUserPanel />
         </aside>
 
         <div className="flex h-full w-full flex-1 flex-col gap-8 overflow-y-auto pr-2">
