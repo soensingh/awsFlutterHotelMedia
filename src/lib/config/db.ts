@@ -1,28 +1,39 @@
 import mongoose, { Connection } from "mongoose";
 import { env } from "./env";
 
-type DBType = "main" | "cms";
+let baseConnection: typeof mongoose | null = null;
+const dbs: Partial<Record<"main" | "cms", Connection>> = {};
 
-const connections: Partial<Record<DBType, Connection>> = {};
+const style = {
+  ok: "\x1b[32m",
+  info: "\x1b[36m",
+  warn: "\x1b[33m",
+  reset: "\x1b[0m",
+};
 
-export async function connectDB(type: DBType): Promise<Connection> {
-  if (connections[type]) {
-    return connections[type]!;
+const tag = (label: string) => `${style.info}[DB]${style.reset} ${label}`;
+
+async function getBaseConnection() {
+  if (!baseConnection) {
+    baseConnection = await mongoose.connect(env.MONGODB_URI);
+    console.log(`${tag(`${style.ok}Mongo connection successful${style.reset}`)}`);
   }
+  return baseConnection.connection;
+}
 
-  let dbName: string;
+export async function connectDB(type: "main" | "cms") {
+  if (dbs[type]) return dbs[type]!;
 
-  if (type === "main") {
-    dbName = env.MONGODB_DB;
-  } else {
-    dbName = env.MONGODB_DB_CMS;
-  }
+  const base = await getBaseConnection();
+  const dbName = type === "main" ? env.MONGODB_DB : env.MONGODB_DB_CMS;
 
-  const uri = `${env.MONGODB_URI}${dbName}`;
+  dbs[type] = base.useDb(dbName);
 
-  const connection = await mongoose.createConnection(uri).asPromise();
+  const label =
+    type === "main"
+      ? `${style.ok}Main DB connected${style.reset}`
+      : `${style.ok}CMS DB connected${style.reset}`;
 
-  connections[type] = connection;
-
-  return connection;
+  console.log(`${tag(label)}`);
+  return dbs[type]!;
 }
