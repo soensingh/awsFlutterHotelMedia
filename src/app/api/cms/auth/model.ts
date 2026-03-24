@@ -10,6 +10,8 @@ const cmsUserSchema = new Schema(
     dialCode: { type: String, trim: true, default: "" },
     phoneNumber: { type: String, trim: true, default: "" },
     password: { type: String, required: true },
+    locale: { type: String, trim: true, default: "en" },
+    timeZone: { type: String, trim: true, default: "Asia/Kolkata" },
     sessionTokenId: { type: String, default: null },
     lastOnline: { type: Date, default: null },
     isOnline: { type: Boolean, default: false },
