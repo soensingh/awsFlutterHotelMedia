@@ -20,6 +20,23 @@ const envSchema = z.object({
     JWT_COOKIE_MAX_AGE_MOBILE: z.coerce.number(),
 
     BCRYPT_SALT_ROUNDS: z.coerce.number(),
+
+    AWS_REGION: z.string(),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    S3_BUCKET_MOBILE: z.string().optional(),
+    // CloudFront CDN domain (optional) — if set, public URLs use CloudFront
+    CLOUDFRONT_DOMAIN: z.string().optional(),
+    // TRAI DLT compliance (required for India SMS delivery)
+    AWS_SNS_ENTITY_ID: z.string().optional(),
+    AWS_SNS_TEMPLATE_ID: z.string().optional(),
+    AWS_SNS_SENDER_ID: z.string().optional(),
+    // Firebase Admin – service account JSON as a single-line string
+    FIREBASE_SERVICE_ACCOUNT: z.string().optional(),
+    // Internal WS notify secret (same value as WS_NOTIFY_SECRET in ws-server)
+    WS_NOTIFY_SECRET: z.string().optional(),
+    // WS server internal URL (default: http://localhost:3001)
+    WS_INTERNAL_URL: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
