@@ -75,7 +75,7 @@ export async function GET(req: Request) {
     ),
   ].map((id) => new mongoose.Types.ObjectId(id));
 
-  type UserLean = { _id: unknown; name?: string; username?: string; profilePic?: { small?: string } };
+  type UserLean = { _id: unknown; name?: string; username?: string; profilePic?: { small?: string } | null };
   const actors: UserLean[] = actorIds.length
     ? await User.find(
         { _id: { $in: actorIds } },
