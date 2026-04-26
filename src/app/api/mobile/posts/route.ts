@@ -4,6 +4,7 @@ import { getPostModel, getMediaModel } from "./models";
 import { corsJson, corsOptions } from "../auth/cors";
 import { env } from "@/lib/config/env";
 import { notifyUser } from "@/lib/ws-notify";
+import { resolveDisplayData } from "../business-profile/models";
 
 export const runtime = "nodejs";
 
@@ -83,7 +84,7 @@ export async function GET(req: Request) {
         localField: "userID",
         foreignField: "_id",
         as: "authorData",
-        pipeline: [{ $project: { name: 1, username: 1, profilePic: 1 } }],
+        pipeline: [{ $project: { name: 1, username: 1, profilePic: 1, accountType: 1, businessProfileID: 1 } }],
       },
     },
     // Populate tagged users
@@ -123,6 +124,21 @@ export async function GET(req: Request) {
         as: "savedData",
       },
     },
+    // Count shares from sharedcontents
+    {
+      $lookup: {
+        from: "sharedcontents",
+        let: { postId: "$_id" },
+        pipeline: [
+          { $match: { $expr: { $and: [
+            { $eq: ["$contentID", "$$postId"] },
+            { $eq: ["$contentType", "post"] },
+          ]}}},
+          { $count: "total" },
+        ],
+        as: "sharesData",
+      },
+    },
     // Count real comments from the comments collection
     {
       $lookup: {
@@ -136,6 +152,30 @@ export async function GET(req: Request) {
           { $count: "total" },
         ],
         as: "commentsData",
+      },
+    },
+    // Look up the viewer’s follow relationship to this post’s author
+    // so the home feed can show a Follow / Following / Requested button
+    // inline without an extra round-trip per post.
+    {
+      $lookup: {
+        from: "userconnections",
+        let: { authorId: "$userID" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ["$follower", userId ? new mongoose.Types.ObjectId(userId) : null] },
+                  { $eq: ["$following", "$$authorId"] },
+                ],
+              },
+            },
+          },
+          { $project: { status: 1 } },
+          { $limit: 1 },
+        ],
+        as: "connData",
       },
     },
     // Final shape
@@ -154,6 +194,7 @@ export async function GET(req: Request) {
         taggedUsers: "$taggedData",
         likesCount: { $size: "$likesData" },
         commentsCount: { $ifNull: [{ $arrayElemAt: ["$commentsData.total", 0] }, 0] },
+        sharesCount:   { $ifNull: [{ $arrayElemAt: ["$sharesData.total",   0] }, 0] },
         isLiked: userId
           ? {
               $gt: [
@@ -176,30 +217,60 @@ export async function GET(req: Request) {
             }
           : false,
         isSaved: userId ? { $gt: [{ $size: "$savedData" }, 0] } : false,
+        connectionStatus: {
+          $let: {
+            vars: { st: { $arrayElemAt: ["$connData.status", 0] } },
+            in: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$$st", "accepted"] }, then: "following" },
+                  { case: { $eq: ["$$st", "pending"] }, then: "requested" },
+                ],
+                default: "none",
+              },
+            },
+          },
+        },
       },
     },
   ]);
 
   // Stringify all ObjectIds so Flutter doesn't receive BSON objects
-  const posts = rawPosts.map((p) => ({
-    ...p,
-    _id: p._id?.toString(),
-    author: p.author
-      ? {
-          ...p.author,
-          _id: (p.author._id as mongoose.Types.ObjectId)?.toString(),
-          profilePic: p.author.profilePic ?? {},
-        }
-      : null,
-    mediaData: (p.mediaData ?? []).map((m: Record<string, unknown>) => ({
-      ...m,
-      _id: (m._id as mongoose.Types.ObjectId)?.toString(),
-    })),
-    taggedUsers: (p.taggedUsers ?? []).map((u: Record<string, unknown>) => ({
-      ...u,
-      _id: (u._id as mongoose.Types.ObjectId)?.toString(),
-    })),
-  }));
+  // Resolve business author display name + pic
+  const postBizUsers = rawPosts
+    .filter((p) => p.author?.accountType === "business" && p.author?.businessProfileID)
+    .map((p) => ({ userId: (p.author._id as mongoose.Types.ObjectId).toString(), businessProfileID: p.author.businessProfileID as mongoose.Types.ObjectId }));
+  const uniquePostBizUsers = [...new Map(postBizUsers.map((u) => [u.userId, u])).values()];
+  const postDisplayMap = await resolveDisplayData(uniquePostBizUsers);
+
+  const posts = rawPosts.map((p) => {
+    const authorId = p.author ? (p.author._id as mongoose.Types.ObjectId)?.toString() : null;
+    const biz = authorId ? postDisplayMap.get(authorId) : undefined;
+    return {
+      ...p,
+      _id: p._id?.toString(),
+      author: p.author
+        ? {
+            ...p.author,
+            _id: authorId,
+            name: biz?.displayName || p.author.name,
+            profilePic: biz?.displayPic ?? p.author.profilePic ?? {},
+            // Hoist viewer→author connection status onto the author object
+            // so the client can render the Follow button with all the data
+            // it needs in one place.
+            connectionStatus: p.connectionStatus ?? "none",
+          }
+        : null,
+      mediaData: (p.mediaData ?? []).map((m: Record<string, unknown>) => ({
+        ...m,
+        _id: (m._id as mongoose.Types.ObjectId)?.toString(),
+      })),
+      taggedUsers: (p.taggedUsers ?? []).map((u: Record<string, unknown>) => ({
+        ...u,
+        _id: (u._id as mongoose.Types.ObjectId)?.toString(),
+      })),
+    };
+  });
 
   return corsJson(req, { posts }, {
     headers: { 'Cache-Control': 'private, no-store' },
